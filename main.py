@@ -309,7 +309,6 @@ def main(args):
                 loss_fn=loss_fn,
                 dataloader=train_dataloaders[0],
                 device=args.device,
-                start_step=(e - 1) * steps_per_epoch + 1,
                 lr_schedule=lr_scheduler,
             )
             valid_avg_loss, valid_acc, _, _, score = valid_one_epoch(
