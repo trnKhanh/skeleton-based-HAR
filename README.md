@@ -12,3 +12,4 @@ python main.py -h
 ```bash
 python visualize.py --sample-path <path-to-sample> --ensemble <models-to-use> --features <features-to-uses> --adaptive
 ```
+- Checkpoints are available at [Google Drive](https://drive.google.com/drive/folders/1kJBfLjJ_fsmPCvDCAVG4iC2jS0Ezwsck?usp=sharing)
