@@ -72,11 +72,11 @@ class ResizeSequence(object):
                 max(int(p * valid_len), self.new_length), valid_len
             )
             bias = np.random.randint(0, valid_len - cropped_len + 1)
-            data = data[:, begin + bias : end + bias + cropped_len, :, :]
+            data = data[:, begin + bias : begin + bias + cropped_len, :, :]
 
         C, T, V, M = data.size()
 
-        data = data.permute(0, 2, 3, 1).contiguous().view(C * V * M, T)
+        data = data.permute(0, 2, 3, 1).contiguous().view(C * V * M, cropped_len)
         data = data[None, None, :, :]
         data = F.interpolate(
             data,
@@ -90,6 +90,5 @@ class ResizeSequence(object):
             .permute(0, 3, 1, 2)
             .contiguous()
         )
-        
 
         return data
