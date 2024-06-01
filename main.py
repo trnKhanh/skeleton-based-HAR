@@ -301,7 +301,7 @@ def main(args):
     if args.train:
         print("=" * os.get_terminal_size().columns)
         print("Model")
-        summary(model, (3, 64, 25, 2))
+        print(model)
         print(f"  Number of parameters: {num_params}")
         print("=" * os.get_terminal_size().columns)
         log = []
