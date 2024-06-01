@@ -23,11 +23,12 @@ class NTUDataset(Dataset):
         length_t=64,
         features="j",
         center=20,
+        p_interval=[1],
     ):
         super().__init__()
         self.graph = Graph(center)
 
-        self.transform = ResizeSequence(length_t)
+        self.transform = ResizeSequence(length_t, p_interval)
         self.features = features
         self.samples = {"train": [], "valid": []}
         self.labels = {"train": [], "valid": []}
@@ -118,6 +119,9 @@ class NTUDataset(Dataset):
         sample = np.load(sample_path, allow_pickle=True)
         sample = torch.from_numpy(sample)
 
+        if self.transform is not None:
+            sample = self.transform(sample)
+
         features = self.features.split(",")
         for id, f in enumerate(features):
             features[id] = f.strip()
@@ -153,9 +157,6 @@ class NTUDataset(Dataset):
                 )
             else:
                 raise ValueError(f"Feature {f} is invalid")
-
-        if data is not None and self.transform is not None:
-            data = self.transform(data)
 
         return data, label
 

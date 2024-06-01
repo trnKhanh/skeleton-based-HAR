@@ -58,6 +58,13 @@ def create_args():
         help="Number of frames in each sample",
     )
     parser.add_argument(
+        "--p-intervals",
+        default=[1],
+        type=float,
+        nargs="+",
+        help="Percentage of cropped length",
+    )
+    parser.add_argument(
         "--data-path", required=True, type=str, help="Path to dataset"
     )
     parser.add_argument(
@@ -193,6 +200,7 @@ def main(args):
                 split=args.split,
                 features=feature,
                 length_t=args.length_t,
+                p_interval=args.p_intervals,
             )
         )
 
