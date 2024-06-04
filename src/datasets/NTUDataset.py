@@ -2,8 +2,9 @@ import os
 import numpy as np
 
 import torch
+import torchvision.transforms as transforms
 from torch.utils.data import Dataset
-from src.datasets.augment import ResizeSequence
+from src.datasets.augment import ResizeSequence, RandomRotate
 from src.datasets.utils import get_angular_motion
 
 from src.graph.ntu_graph import Graph
@@ -28,7 +29,9 @@ class NTUDataset(Dataset):
         super().__init__()
         self.graph = Graph(center)
 
-        self.transform = ResizeSequence(length_t, p_interval)
+        self.transform = transforms.Compose(
+            [ResizeSequence(length_t, p_interval), RandomRotate(0.3)]
+        )
         self.features = features
         self.samples = {"train": [], "valid": []}
         self.labels = {"train": [], "valid": []}
