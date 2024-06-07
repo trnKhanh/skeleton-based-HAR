@@ -37,11 +37,12 @@ class NTUDataset(Dataset):
         self.samples = {"train": [], "valid": []}
         self.labels = {"train": [], "valid": []}
         self.mode = mode
+        self.split = split
         if self.mode not in ["train", "valid"]:
             raise NameError(f"Mode {self.mode} is invalid")
-        train_ids = []
+        self.train_ids = []
         if split == "x-subject":
-            train_ids = []
+            self.train_ids = []
             with open(
                 os.path.join(
                     os.path.dirname(__file__), self.train_subjects_file
@@ -50,11 +51,11 @@ class NTUDataset(Dataset):
             ) as f:
                 lines = f.readlines()
                 for line in lines:
-                    train_ids.append(int(line))
+                    self.train_ids.append(int(line))
         elif split == "x-setup":
-            train_ids = [i for i in range(2, 33, 2)]
+            self.train_ids = [i for i in range(2, 33, 2)]
         elif split == "x-view":
-            train_ids = []
+            self.train_ids = []
             with open(
                 os.path.join(
                     os.path.dirname(__file__), self.train_cameras_file
@@ -63,14 +64,19 @@ class NTUDataset(Dataset):
             ) as f:
                 lines = f.readlines()
                 for line in lines:
-                    train_ids.append(int(line))
+                    self.train_ids.append(int(line))
         else:
             raise NameError(f"Split {split} is invalid")
 
-        for file in os.scandir(data_path):
-            if split == "x-subject":
+        self.__read_data(data_path)
+        if len(extra_data_path) > 0:
+            self.__read_data(extra_data_path)
+
+    def __read_data(self, path: str):
+        for file in sorted(os.scandir(path), key=lambda x: x.name):
+            if self.split == "x-subject":
                 c = "P"
-            elif split == "x-setup":
+            elif self.split == "x-setup":
                 c = "S"
             else:
                 c = "C"
@@ -81,37 +87,12 @@ class NTUDataset(Dataset):
                 )
                 - 1
             )
-            if id in train_ids:
+            if id in self.train_ids:
                 self.samples["train"].append(file.path)
                 self.labels["train"].append(label)
             else:
                 self.samples["valid"].append(file.path)
                 self.labels["valid"].append(label)
-        if len(extra_data_path) > 0:
-            for file in os.scandir(extra_data_path):
-                if split == "x-subject":
-                    c = "P"
-                elif split == "x-setup":
-                    c = "S"
-                else:
-                    c = "C"
-                id = int(
-                    file.name[file.name.find(c) + 1 : file.name.find(c) + 4]
-                )
-                label = (
-                    int(
-                        file.name[
-                            file.name.find("A") + 1 : file.name.find("A") + 4
-                        ]
-                    )
-                    - 1
-                )
-                if id in train_ids:
-                    self.samples["train"].append(file.path)
-                    self.labels["train"].append(label)
-                else:
-                    self.samples["valid"].append(file.path)
-                    self.labels["valid"].append(label)
 
     def __len__(self):
         return len(self.samples[self.mode])
@@ -126,7 +107,7 @@ class NTUDataset(Dataset):
         if self.transform is not None:
             sample = self.transform(sample)
 
-        if self.mode == 'train' and self.augment is not None:
+        if self.mode == "train" and self.augment is not None:
             sample = self.augment(sample)
 
         features = self.features.split(",")
