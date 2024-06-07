@@ -30,8 +30,9 @@ class NTUDataset(Dataset):
         self.graph = Graph(center)
 
         self.transform = transforms.Compose(
-            [ResizeSequence(length_t, p_interval), RandomRotate(0.3)]
+            [ResizeSequence(length_t, p_interval)]
         )
+        self.augment = transforms.Compose([RandomRotate(0.3)])
         self.features = features
         self.samples = {"train": [], "valid": []}
         self.labels = {"train": [], "valid": []}
@@ -124,6 +125,9 @@ class NTUDataset(Dataset):
 
         if self.transform is not None:
             sample = self.transform(sample)
+
+        if self.mode == 'train' and self.augment is not None:
+            sample = self.augment(sample)
 
         features = self.features.split(",")
         for id, f in enumerate(features):
