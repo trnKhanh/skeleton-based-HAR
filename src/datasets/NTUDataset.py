@@ -10,6 +10,8 @@ from src.datasets.utils import get_angular_motion
 from src.graph.ntu_graph import Graph
 from src.datasets.utils import get_angular_motion
 
+from tqdm import tqdm
+
 
 class NTUDataset(Dataset):
     train_subjects_file = "../../resources/train_subjects.txt"
@@ -25,6 +27,7 @@ class NTUDataset(Dataset):
         features="j",
         center=20,
         p_interval=[1],
+        load_to_ram=False,
     ):
         super().__init__()
         self.graph = Graph(center)
@@ -34,10 +37,11 @@ class NTUDataset(Dataset):
         )
         self.augment = transforms.Compose([RandomRotate(0.3)])
         self.features = features
-        self.samples = {"train": [], "valid": []}
-        self.labels = {"train": [], "valid": []}
+        self.samples = []
+        self.labels = []
         self.mode = mode
         self.split = split
+        self.load_to_ram = load_to_ram
         if self.mode not in ["train", "valid"]:
             raise NameError(f"Mode {self.mode} is invalid")
         self.train_ids = []
@@ -73,7 +77,13 @@ class NTUDataset(Dataset):
             self.__read_data(extra_data_path)
 
     def __read_data(self, path: str):
-        for file in sorted(os.scandir(path), key=lambda x: x.name):
+        print("-" * os.get_terminal_size().columns)
+        print(f"Read {self.mode} data from {path}")
+        for file in tqdm(
+            sorted(os.scandir(path), key=lambda x: x.name),
+            desc=f"Process samples",
+            ncols=0,
+        ):
             if self.split == "x-subject":
                 c = "P"
             elif self.split == "x-setup":
@@ -87,22 +97,36 @@ class NTUDataset(Dataset):
                 )
                 - 1
             )
-            if id in self.train_ids:
-                self.samples["train"].append(file.path)
-                self.labels["train"].append(label)
-            else:
-                self.samples["valid"].append(file.path)
-                self.labels["valid"].append(label)
+            if id in self.train_ids and self.mode == "train":
+                if self.load_to_ram:
+                    self.samples.append(torch.tensor(np.load(file.path)))
+                else:
+                    self.samples.append(file.path)
+
+                self.labels.append(label)
+
+            if id not in self.train_ids and self.mode == "valid":
+                if self.load_to_ram:
+                    self.samples.append(torch.tensor(np.load(file.path)))
+                else:
+                    self.samples.append(file.path)
+
+                self.labels.append(label)
+        print("-" * os.get_terminal_size().columns)
 
     def __len__(self):
-        return len(self.samples[self.mode])
+        return len(self.samples)
 
     def __getitem__(self, index):
-        sample_path = self.samples[self.mode][index]
-        label = self.labels[self.mode][index]
+        label = self.labels[index]
 
-        sample = np.load(sample_path, allow_pickle=True)
-        sample = torch.from_numpy(sample)
+        if self.load_to_ram:
+            sample = self.samples[index]
+        else:
+            sample_path = self.samples[index]
+
+            sample = np.load(sample_path, allow_pickle=True)
+            sample = torch.from_numpy(sample)
 
         if self.transform is not None:
             sample = self.transform(sample)

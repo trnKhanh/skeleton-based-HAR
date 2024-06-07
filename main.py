@@ -13,6 +13,7 @@ from src.utils.engines import (
     valid_one_epoch,
     valid_ensemble_one_epoch,
 )
+from src.datasets.tools import load_dataset
 from src.utils.checkpoints import load_checkpoint, save_checkpoint
 
 import torch
@@ -44,6 +45,11 @@ def create_args():
         help="Where to save final evaluation log",
     )
     # Dataset
+    parser.add_argument(
+        "--load-to-ram",
+        action="store_true",
+        help="Whether to load all dataset to RAM first",
+    )
     parser.add_argument(
         "--features",
         default=["j"],
@@ -187,54 +193,7 @@ def create_args():
 
 
 def main(args):
-    train_datasets = []
-    valid_datasets = []
-    train_dataloaders = []
-    valid_dataloaders = []
-    for feature in args.features:
-        train_datasets.append(
-            NTUDataset(
-                data_path=args.data_path,
-                extra_data_path=args.extra_data_path,
-                mode="train",
-                split=args.split,
-                features=feature,
-                length_t=args.length_t,
-                p_interval=args.p_intervals,
-            )
-        )
-
-        valid_datasets.append(
-            NTUDataset(
-                data_path=args.data_path,
-                extra_data_path=args.extra_data_path,
-                mode="valid",
-                split=args.split,
-                features=feature,
-                length_t=args.length_t,
-            )
-        )
-
-        train_dataloaders.append(
-            DataLoader(
-                dataset=train_datasets[-1],
-                batch_size=args.batch_size,
-                shuffle=True,
-                drop_last=True,
-                num_workers=args.num_workers,
-                pin_memory=True,
-            )
-        )
-        valid_dataloaders.append(
-            DataLoader(
-                dataset=valid_datasets[-1],
-                batch_size=args.batch_size,
-                shuffle=False,
-                drop_last=False,
-                num_workers=args.num_workers,
-                pin_memory=True,
-            )
-        )
+    train_dataloaders, valid_dataloaders = load_dataset(args)
     args.device = torch.device(args.device)
 
     print("=" * os.get_terminal_size().columns)
@@ -245,8 +204,9 @@ def main(args):
     for id in range(len(args.features)):
         print("-" * os.get_terminal_size().columns)
         print(f"  Feature: {args.features[id]}")
-        print(f"  Train size: {len(train_datasets[id])} samples")
-        print(f"  Valid size: {len(valid_datasets[id])} samples")
+        if args.train:
+            print(f"  Train size: {len(train_dataloaders[id].dataset)} samples")
+        print(f"  Valid size: {len(valid_dataloaders[id].dataset)} samples")
         print("-" * os.get_terminal_size().columns)
     print("=" * os.get_terminal_size().columns)
 
@@ -264,7 +224,6 @@ def main(args):
         model.parameters(), lr=args.base_lr, momentum=0.9, weight_decay=0.0004
     )
 
-    steps_per_epoch = len(train_datasets[0]) // args.batch_size
     warmup_steps = args.warmup_epochs
     max_steps = args.max_epochs
     lr_scheduler = CosineSchedule(
