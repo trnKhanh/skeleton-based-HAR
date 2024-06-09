@@ -343,6 +343,7 @@ def main(args):
 
                 os.makedirs(os.path.dirname(args.score_path), exist_ok=True)
                 np.save(args.score_path, score_np)
+                print(f"Saved scores to {args.score_path}")
 
         print(f"Evalution accuracy: {valid_acc}")
         if len(args.eval_log_path) > 0:
