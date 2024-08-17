@@ -215,6 +215,10 @@ class UCLADataset(Dataset):
 
         data = data.astype(np.float32)
         sample = torch.from_numpy(data)
+        features = self.features.split(",")
+        for id, f in enumerate(features):
+            features[id] = f.strip()
+
         data = None
         for f in features:
             if f == "j":
