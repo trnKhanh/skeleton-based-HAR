@@ -88,7 +88,7 @@ class KineticDataset(Dataset):
         V = 18
 
         # fill data_numpy
-        data_numpy = np.zeros((C, T, V, num_person_in))
+        data_numpy = np.zeros((C, T, V, num_person_in), dtype=np.float32)
         for frame_info in video_info["data"]:
             frame_index = frame_info["frame_index"] - 1
             for m, skeleton_info in enumerate(frame_info["skeleton"]):
@@ -118,7 +118,6 @@ class KineticDataset(Dataset):
         data_numpy[2, :, :, :] = 0
 
         sample = torch.from_numpy(data_numpy)
-        print(sample.dtype)
 
         if self.transform is not None:
             sample = self.transform(sample)
