@@ -23,7 +23,7 @@ class UCLADataset(Dataset):
     def __init__(
         self,
         data_path,
-        label_path,
+        mode,
         features,
         repeat=5,
         random_choose=True,
@@ -37,12 +37,12 @@ class UCLADataset(Dataset):
         self.graph = Graph()
         self.features=features
 
-        if "val" in label_path:
-            self.train_val = "val"
+        if "valid" in mode:
+            self.mode = "valid"
             with open("../../resources/ucla_train.json") as f:
                 self.data_dict = json.load(f)
         else:
-            self.train_val = "train"
+            self.mode = "train"
             with open("../../resources/ucla_valid.json") as f:
                 self.data_dict = json.load(f)
 
@@ -77,7 +77,7 @@ class UCLADataset(Dataset):
 
         self.debug = debug
         self.data_path = data_path
-        self.label_path = label_path
+        self.label_path = mode
         self.random_choose = random_choose
         self.random_shift = random_shift
         self.random_move = random_move
@@ -147,7 +147,7 @@ class UCLADataset(Dataset):
         label = self.label[index % len(self.data_dict)]
         value = self.data[index % len(self.data_dict)]
 
-        if self.train_val == "train":
+        if self.mode == "train":
             random.random()
             agx = random.randint(-60, 60)
             agy = random.randint(-60, 60)
