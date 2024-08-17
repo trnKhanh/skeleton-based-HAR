@@ -39,6 +39,7 @@ def create_args():
     parser.add_argument("--seed", default=1, type=int)
     parser.add_argument("--steps", type=int, default=[35, 55], nargs="*")
     parser.add_argument("--decay-rate", type=float, default=0.1)
+    parser.add_argument("--weight-decay", type=float, default=0.0004)
     parser.add_argument(
         "--graph", default="src.graph.ntu_graph.Graph", type=str
     )
@@ -246,7 +247,10 @@ def main(args):
     model.to(args.device)
     num_params = sum([p.numel() for p in model.parameters()])
     optimizer = optim.SGD(
-        model.parameters(), lr=args.base_lr, momentum=0.9, weight_decay=0.0004
+        model.parameters(),
+        lr=args.base_lr,
+        momentum=0.9,
+        weight_decay=args.weight_decay,
     )
 
     warmup_steps = args.warmup_epochs
