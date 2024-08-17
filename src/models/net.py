@@ -13,6 +13,7 @@ class STGCN(nn.Module):
         act_layer=nn.ReLU,
         dropout_rate: float = 0,
         adaptive: bool = True,
+        num_people: int = 2,
     ):
         """
         :param in_channels: input channels size
@@ -24,7 +25,7 @@ class STGCN(nn.Module):
         super().__init__()
         self.graph = Graph()
         self.data_norm = nn.BatchNorm1d(
-            in_channels * self.graph.get_A().shape[0]
+            in_channels * self.graph.get_A().shape[0] * num_people
         )
         layer_cfs = [
             (in_channels, 64, 1),
@@ -60,11 +61,14 @@ class STGCN(nn.Module):
     def forward(self, x):
         N, C, T, V, M = x.size()
 
-        x = x.permute(0, 4, 3, 1, 2).contiguous()
-        x = x.view(N * M, V * C, T)
+        x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
         x = self.data_norm(x)
-        x = x.view(N * M, V, C, T)
-        x = x.permute(0, 2, 3, 1).contiguous()
+        x = (
+            x.view(N, M, V, C, T)
+            .permute(0, 1, 3, 4, 2)
+            .contiguous()
+            .view(N * M, C, T, V)
+        )
 
         for block in self.blocks:
             x = block(x)
