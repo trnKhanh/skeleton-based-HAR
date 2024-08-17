@@ -118,6 +118,7 @@ class KineticDataset(Dataset):
         data_numpy[2, :, :, :] = 0
 
         sample = torch.from_numpy(data_numpy)
+        print(sample.dtype)
 
         if self.transform is not None:
             sample = self.transform(sample)
