@@ -86,11 +86,14 @@ class KineticDataset(Dataset):
         C = 3
         T = len(video_info["data"])
         V = 18
+        print("$$$")
+        print(T)
 
         # fill data_numpy
         data_numpy = np.zeros((C, T, V, num_person_in))
         for frame_info in video_info["data"]:
             frame_index = frame_info["frame_index"]
+            print(f"\t{frame_index}")
             for m, skeleton_info in enumerate(frame_info["skeleton"]):
                 if m >= num_person_in:
                     break
@@ -112,7 +115,6 @@ class KineticDataset(Dataset):
 
         # sort by score
         sort_index = (-data_numpy[2, :, :, :].sum(axis=1)).argsort(axis=1)
-        print("$$$")
         print(data_numpy.shape)
         for t, s in enumerate(sort_index):
             data_numpy[:, t, :, :] = data_numpy[:, t, :, s].transpose((1, 2, 0))
