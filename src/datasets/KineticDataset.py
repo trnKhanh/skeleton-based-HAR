@@ -194,4 +194,4 @@ class KineticDataset(Dataset):
         return bones_motion
 
     def __get_angular_motion(self, sample: torch.Tensor):
-        return get_angular_motion(sample, 1)
+        return get_angular_motion(sample, 1, "kinetic")

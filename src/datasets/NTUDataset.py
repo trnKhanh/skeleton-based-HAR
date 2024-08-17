@@ -203,4 +203,4 @@ class NTUDataset(Dataset):
         return bones_motion
 
     def __get_angular_motion(self, sample: torch.Tensor):
-        return get_angular_motion(sample, 20)
+        return get_angular_motion(sample, 20, "ntu")
