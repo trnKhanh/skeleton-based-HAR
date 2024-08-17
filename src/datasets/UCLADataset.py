@@ -16,7 +16,7 @@ from src.datasets.utils import get_angular_motion
 from tqdm import tqdm
 
 
-class NTUDataset(Dataset):
+class UCLADataset(Dataset):
     train_subjects_file = "../../resources/train_subjects.txt"
     train_cameras_file = "../../resources/train_cameras.txt"
 
