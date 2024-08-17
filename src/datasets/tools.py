@@ -1,5 +1,5 @@
 from src.datasets.NTUDataset import NTUDataset
-from src.datasets.KineticDataset import KineticDataset
+from src.datasets.UCLADataset import UCLADataset
 from torch.utils.data import DataLoader
 
 
@@ -23,9 +23,9 @@ def load_dataset(args, init_seed):
                         load_to_ram=args.load_to_ram,
                     )
                 )
-            elif args.dataset == "kinetic":
+            elif args.dataset == "ucla":
                 train_datasets.append(
-                    KineticDataset(
+                    UCLADataset(
                         data_path=args.data_path,
                         extra_data_path=args.extra_data_path,
                         mode="train",
@@ -59,9 +59,9 @@ def load_dataset(args, init_seed):
                     load_to_ram=args.load_to_ram,
                 )
             )
-        elif args.dataset == "kinetic":
+        elif args.dataset == "ucla":
             valid_datasets.append(
-                KineticDataset(
+                UCLADataset(
                     data_path=args.data_path,
                     extra_data_path=args.extra_data_path,
                     mode="valid",

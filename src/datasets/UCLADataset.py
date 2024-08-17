@@ -35,6 +35,7 @@ class NTUDataset(Dataset):
         use_mmap=True,
     ):
         self.graph = Graph()
+        self.features=features
 
         if "val" in label_path:
             self.train_val = "val"
@@ -45,7 +46,7 @@ class NTUDataset(Dataset):
             with open("../../resources/ucla_valid.json") as f:
                 self.data_dict = json.load(f)
 
-        self.nw_ucla_root = "data_path"
+        self.nw_ucla_root = data_path
         self.time_steps = 52
         self.bone = [
             (1, 2),
