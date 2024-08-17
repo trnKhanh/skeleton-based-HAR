@@ -115,6 +115,8 @@ class KineticDataset(Dataset):
         sort_index = (-data_numpy[2, :, :, :].sum(axis=1)).argsort(axis=1)
         print(data_numpy.shape)
         for t, s in enumerate(sort_index):
+            print(data_numpy[:, t, :, :].shape)
+            print(s)
             print(data_numpy[:, t, :, s].shape)
             data_numpy[:, t, :, :] = data_numpy[:, t, :, s].transpose((1, 2, 0))
         print(data_numpy.shape)
