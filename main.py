@@ -44,6 +44,7 @@ def create_args():
     )
     parser.add_argument("--dataset", default="ntu", choices=["ntu", "ucla"])
     parser.add_argument("--num-points", default=25, type=int)
+    parser.add_argument("--num-people", default=2, type=int)
 
     parser.add_argument(
         "--score-path", default="", type=str, help="Where to save score"
@@ -238,6 +239,7 @@ def main(args):
         in_channels=3 * num_features,
         num_class=args.num_classes,
         num_point=args.num_points,
+        num_person=args.num_people,
         graph=args.graph,
         graph_args=dict(labeling_mode="spatial"),
     )
