@@ -236,7 +236,7 @@ def main(args):
     model = Model(
         in_channels=3 * num_features,
         num_class=args.num_classes,
-        num_point=args.num_point,
+        num_point=args.num_points,
         graph=args.graph,
         graph_args=dict(labeling_mode="spatial"),
     )
