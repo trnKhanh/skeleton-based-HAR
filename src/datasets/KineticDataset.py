@@ -92,7 +92,7 @@ class KineticDataset(Dataset):
         # fill data_numpy
         data_numpy = np.zeros((C, T, V, num_person_in))
         for frame_info in video_info["data"]:
-            frame_index = frame_info["frame_index"]
+            frame_index = frame_info["frame_index"] - 1
             print(f"\t{frame_index}")
             for m, skeleton_info in enumerate(frame_info["skeleton"]):
                 if m >= num_person_in:
