@@ -2,7 +2,7 @@ from src.datasets.NTUDataset import NTUDataset
 from torch.utils.data import DataLoader
 
 
-def load_dataset(args):
+def load_dataset(args, init_seed):
     train_datasets = []
     valid_datasets = []
     train_dataloaders = []
@@ -29,6 +29,7 @@ def load_dataset(args):
                     drop_last=True,
                     num_workers=args.num_workers,
                     pin_memory=True,
+                    worker_init_fn=init_seed,
                 )
             )
 
@@ -52,6 +53,7 @@ def load_dataset(args):
                 drop_last=False,
                 num_workers=args.num_workers,
                 pin_memory=True,
+                worker_init_fn=init_seed,
             )
         )
     return train_dataloaders, valid_dataloaders

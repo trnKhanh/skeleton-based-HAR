@@ -51,12 +51,12 @@ def get_local_angle_motion(sample: torch.Tensor):
     return 1 - m_cos
 
 
-def get_angular_motion(sample: torch.Tensor):
+def get_angular_motion(sample: torch.Tensor, center: int):
     C, T, V, M = sample.size()
     angle_embed = torch.zeros((3, T, V, M))
 
     angle_embed[0, 1:, :, :] = get_neighbor_angle_motion(sample)
-    angle_embed[1, 1:, :, :] = get_global_angle_motion(sample, 20)
+    angle_embed[1, 1:, :, :] = get_global_angle_motion(sample, center)
     angle_embed[2, 1:, :, :] = get_local_angle_motion(sample)
 
     return angle_embed

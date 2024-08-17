@@ -5,9 +5,9 @@ from argparse import ArgumentParser
 import numpy as np
 
 from src.datasets.NTUDataset import NTUDataset
-from src.models.net import STGCN
+from src.models.ctrgcn import Model
 
-from src.utils.optims import CosineSchedule
+from src.utils.optims import StepSchedule
 from src.utils.engines import (
     train_one_epoch,
     valid_one_epoch,
@@ -20,10 +20,29 @@ import torch
 from torchsummary import summary
 from torch.utils.data import DataLoader
 from torch import optim, nn
+import random
+
+
+def init_seed(seed):
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    # torch.backends.cudnn.enabled = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def create_args():
     parser = ArgumentParser()
+    parser.add_argument("--seed", default=1, type=int)
+    parser.add_argument("--steps", type=int, default=[35, 55], nargs="*")
+    parser.add_argument("--decay-rate", type=float, default=0.1)
+    parser.add_argument(
+        "--graph", default="src.graph.ntu_graph.Graph", type=str
+    )
+    parser.add_argument("--num-points", default=25, type=int)
 
     parser.add_argument(
         "--score-path", default="", type=str, help="Where to save score"
@@ -193,7 +212,10 @@ def create_args():
 
 
 def main(args):
-    train_dataloaders, valid_dataloaders = load_dataset(args)
+    init_seed(args.seed)
+    train_dataloaders, valid_dataloaders = load_dataset(
+        args, init_seed=init_seed
+    )
     args.device = torch.device(args.device)
 
     print("=" * os.get_terminal_size().columns)
@@ -211,12 +233,12 @@ def main(args):
     print("=" * os.get_terminal_size().columns)
 
     num_features = args.features[0].count(",") + 1
-    model = STGCN(
-        3 * num_features,
-        args.num_classes,
-        act_layer=nn.ReLU,
-        dropout_rate=args.dropout_rate,
-        adaptive=args.adaptive,
+    model = Model(
+        in_channels=3 * num_features,
+        num_class=args.num_classes,
+        num_point=args.num_point,
+        graph=args.graph,
+        graph_args=dict(labeling_mode="spatial"),
     )
     model.to(args.device)
     num_params = sum([p.numel() for p in model.parameters()])
@@ -226,12 +248,12 @@ def main(args):
 
     warmup_steps = args.warmup_epochs
     max_steps = args.max_epochs
-    lr_scheduler = CosineSchedule(
+    lr_scheduler = StepSchedule(
         optimizer=optimizer,
         warmup_steps=warmup_steps,
         base_lr=args.base_lr,
-        target_lr=args.target_lr,
-        max_steps=max_steps,
+        steps=args.steps,
+        decay_rate=args.decay_rate,
         cur_step=args.start_epoch - 1,
     )
     if len(args.load_ckpt) > 0 and os.path.isfile(args.load_ckpt):
@@ -345,44 +367,6 @@ def main(args):
                 np.save(args.score_path, score_np)
                 print(f"Saved scores to {args.score_path}")
 
-        print(f"Evalution accuracy: {valid_acc}")
-        if len(args.eval_log_path) > 0:
-            os.makedirs(os.path.dirname(args.eval_log_path), exist_ok=True)
-            with open(args.eval_log_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {"preds": preds, "labels": labels},
-                    f,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-    if len(args.ensemble) > 0:
-        assert len(args.features) == len(args.ensemble)
-        models = nn.ModuleList()
-        for i in range(len(args.ensemble)):
-            num_features = args.features[i].count(",") + 1
-            models.append(
-                STGCN(
-                    3 * num_features,
-                    args.num_classes,
-                    act_layer=nn.ReLU,
-                    dropout_rate=args.dropout_rate,
-                    adaptive=args.adaptive,
-                )
-            )
-
-            state_dict = torch.load(args.ensemble[i], map_location=args.device)
-            if "model" in state_dict:
-                models[-1].load_state_dict(state_dict["model"])
-            else:
-                models[-1].load_state_dict(state_dict)
-            print(f"Loaded model from {args.ensemble[i]}")
-        models.to(args.device)
-        valid_acc, preds, labels = valid_ensemble_one_epoch(
-            models,
-            valid_dataloaders,
-            args.device,
-            args.alphas if len(args.alphas) > 0 else None,
-        )
         print(f"Evalution accuracy: {valid_acc}")
         if len(args.eval_log_path) > 0:
             os.makedirs(os.path.dirname(args.eval_log_path), exist_ok=True)

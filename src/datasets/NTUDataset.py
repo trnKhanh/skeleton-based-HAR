@@ -30,7 +30,7 @@ class NTUDataset(Dataset):
         load_to_ram=False,
     ):
         super().__init__()
-        self.graph = Graph(center)
+        self.graph = Graph()
 
         self.transform = transforms.Compose(
             [ResizeSequence(length_t, p_interval)]
@@ -185,14 +185,13 @@ class NTUDataset(Dataset):
         C, T, V, M = sample.size()
         bones = torch.zeros_like(sample)
 
-        A = self.graph.get_A()
-        num_joints = A.shape[0]
+        inward_A = self.graph.get_adjacency_matrix()[1]
+        num_joints = inward_A.shape[0]
         for u in range(num_joints):
             for v in range(num_joints):
-                if A[u, v] == 0:
+                if inward_A[u, v] == 0:
                     continue
-                if self.graph.depth[u] > self.graph.depth[v]:
-                    bones[:, :, u, :] = sample[:, :, u, :] - sample[:, :, v, :]
+                bones[:, :, u, :] = sample[:, :, v, :] - sample[:, :, u, :]
         return bones
 
     def __get_bones_motion(self, sample: torch.Tensor):
@@ -204,4 +203,4 @@ class NTUDataset(Dataset):
         return bones_motion
 
     def __get_angular_motion(self, sample: torch.Tensor):
-        return get_angular_motion(sample)
+        return get_angular_motion(sample, 20)

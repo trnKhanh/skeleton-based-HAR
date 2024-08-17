@@ -1,7 +1,9 @@
 import torch
+import numpy as np
 from torch.optim import Optimizer
 
 import math
+
 
 # This implementation tries to resemble Pytorch API
 class CosineSchedule(object):
@@ -61,3 +63,58 @@ class CosineSchedule(object):
                 self.cur_step = v
             else:
                 raise ValueError(f"CosineSchedule does not have {k}")
+
+
+class StepSchedule(object):
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        warmup_steps: int,
+        base_lr: float,
+        steps: list[int],
+        decay_rate: float,
+        cur_step: int = 0,
+    ):
+        self.optimizer = optimizer
+        self.base_lr = base_lr
+        self.steps = np.array(steps)
+        self.decay_rate = decay_rate
+        self.warmup_steps = warmup_steps
+        self.cur_step = cur_step
+
+    def __call__(self, cur_step: int):
+        if cur_step <= self.warmup_steps:
+            return cur_step / self.warmup_steps * self.base_lr
+
+        return self.base_lr * (
+            self.decay_rate ** (np.sum(cur_step > self.steps))
+        )
+
+    def step(self):
+        self.cur_step += 1
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = self.__call__(self.cur_step)
+
+    def state_dict(self):
+        return {
+            "base_lr": self.base_lr,
+            "steps": self.steps,
+            "decay_rate": self.decay_rate,
+            "warmup_steps": self.warmup_steps,
+            "cur_step": self.cur_step,
+        }
+
+    def load_state_dict(self, state_dict):
+        for k, v in state_dict.items():
+            if k == "base_lr":
+                self.base_lr = v
+            elif k == "steps":
+                self.steps = v
+            elif k == "decay_rate":
+                self.decay_rate = v
+            elif k == "warmup_steps":
+                self.warmup_steps = v
+            elif k == "cur_step":
+                self.cur_step = v
+            else:
+                raise ValueError(f"StepSchedule does not have {k}")
