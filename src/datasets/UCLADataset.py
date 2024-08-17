@@ -29,7 +29,7 @@ class UCLADataset(Dataset):
         random_choose=True,
         random_shift=False,
         random_move=False,
-        window_size=-1,
+        window_size=52,
         normalization=False,
         debug=False,
         use_mmap=True,

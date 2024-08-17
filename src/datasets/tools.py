@@ -27,12 +27,8 @@ def load_dataset(args, init_seed):
                 train_datasets.append(
                     UCLADataset(
                         data_path=args.data_path,
-                        extra_data_path=args.extra_data_path,
                         mode="train",
                         features=feature,
-                        length_t=args.length_t,
-                        p_interval=args.p_intervals,
-                        load_to_ram=args.load_to_ram,
                     )
                 )
 
@@ -63,11 +59,8 @@ def load_dataset(args, init_seed):
             valid_datasets.append(
                 UCLADataset(
                     data_path=args.data_path,
-                    extra_data_path=args.extra_data_path,
                     mode="valid",
                     features=feature,
-                    length_t=args.length_t,
-                    load_to_ram=args.load_to_ram,
                 )
             )
 
