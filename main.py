@@ -42,6 +42,7 @@ def create_args():
     parser.add_argument(
         "--graph", default="src.graph.ntu_graph.Graph", type=str
     )
+    parser.add_argument("--dataset", default="ntu", choices=["ntu", "kinetic"])
     parser.add_argument("--num-points", default=25, type=int)
 
     parser.add_argument(
