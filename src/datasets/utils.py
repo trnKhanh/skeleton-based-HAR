@@ -40,6 +40,14 @@ def get_local_angle_motion(sample: torch.Tensor, graph="ntu"):
             10: [9, 11],
             13: [12, 14],
         }
+    elif graph == "ucla":
+        local_center = {
+            10: [9, 11, 12],
+            6: [5, 7, 8],
+            3: [1, 2, 4],
+            18: [17, 19, 20],
+            14: [13, 15, 16],
+        }
     else:
         raise ValueError(f"{graph} is invalid graph")
 

@@ -1,4 +1,7 @@
 import os
+import random
+import math
+import json
 import numpy as np
 
 import torch
@@ -7,7 +10,7 @@ from torch.utils.data import Dataset
 from src.datasets.augment import ResizeSequence, RandomRotate
 from src.datasets.utils import get_angular_motion
 
-from src.graph.ntu_graph import Graph
+from src.graph.ucla_graph import Graph
 from src.datasets.utils import get_angular_motion
 
 from tqdm import tqdm
@@ -20,126 +23,190 @@ class NTUDataset(Dataset):
     def __init__(
         self,
         data_path,
-        extra_data_path="",
-        mode="train",
-        split="x-subject",
-        length_t=64,
-        features="j",
-        center=20,
-        p_interval=[1],
-        load_to_ram=False,
+        label_path,
+        features,
+        repeat=5,
+        random_choose=True,
+        random_shift=False,
+        random_move=False,
+        window_size=-1,
+        normalization=False,
+        debug=False,
+        use_mmap=True,
     ):
-        super().__init__()
         self.graph = Graph()
 
-        self.transform = transforms.Compose(
-            [ResizeSequence(length_t, p_interval)]
-        )
-        self.augment = transforms.Compose([RandomRotate(0.3)])
-        self.features = features
-        self.samples = []
-        self.labels = []
-        self.mode = mode
-        self.split = split
-        self.load_to_ram = load_to_ram
-        if self.mode not in ["train", "valid"]:
-            raise NameError(f"Mode {self.mode} is invalid")
-        self.train_ids = []
-        if split == "x-subject":
-            self.train_ids = []
-            with open(
-                os.path.join(
-                    os.path.dirname(__file__), self.train_subjects_file
-                ),
-                "r",
-            ) as f:
-                lines = f.readlines()
-                for line in lines:
-                    self.train_ids.append(int(line))
-        elif split == "x-setup":
-            self.train_ids = [i for i in range(2, 33, 2)]
-        elif split == "x-view":
-            self.train_ids = []
-            with open(
-                os.path.join(
-                    os.path.dirname(__file__), self.train_cameras_file
-                ),
-                "r",
-            ) as f:
-                lines = f.readlines()
-                for line in lines:
-                    self.train_ids.append(int(line))
+        if "val" in label_path:
+            self.train_val = "val"
+            with open("../../resources/ucla_train.json") as f:
+                self.data_dict = json.load(f)
         else:
-            raise NameError(f"Split {split} is invalid")
+            self.train_val = "train"
+            with open("../../resources/ucla_valid.json") as f:
+                self.data_dict = json.load(f)
 
-        self.__read_data(data_path)
-        if len(extra_data_path) > 0:
-            self.__read_data(extra_data_path)
+        self.nw_ucla_root = "data_path"
+        self.time_steps = 52
+        self.bone = [
+            (1, 2),
+            (2, 3),
+            (3, 3),
+            (4, 3),
+            (5, 3),
+            (6, 5),
+            (7, 6),
+            (8, 7),
+            (9, 3),
+            (10, 9),
+            (11, 10),
+            (12, 11),
+            (13, 1),
+            (14, 13),
+            (15, 14),
+            (16, 15),
+            (17, 1),
+            (18, 17),
+            (19, 18),
+            (20, 19),
+        ]
+        self.label = []
+        for index in range(len(self.data_dict)):
+            info = self.data_dict[index]
+            self.label.append(int(info["label"]) - 1)
 
-    def __read_data(self, path: str):
-        print("-" * os.get_terminal_size().columns)
-        print(f"Read {self.mode} data from {path}")
-        for file in tqdm(
-            sorted(os.scandir(path), key=lambda x: x.name),
-            desc=f"Process samples",
-            ncols=0,
-        ):
-            if self.split == "x-subject":
-                c = "P"
-            elif self.split == "x-setup":
-                c = "S"
-            else:
-                c = "C"
-            id = int(file.name[file.name.find(c) + 1 : file.name.find(c) + 4])
-            label = (
-                int(
-                    file.name[file.name.find("A") + 1 : file.name.find("A") + 4]
-                )
-                - 1
-            )
-            if id in self.train_ids and self.mode == "train":
-                if self.load_to_ram:
-                    self.samples.append(torch.tensor(np.load(file.path)))
-                else:
-                    self.samples.append(file.path)
+        self.debug = debug
+        self.data_path = data_path
+        self.label_path = label_path
+        self.random_choose = random_choose
+        self.random_shift = random_shift
+        self.random_move = random_move
+        self.window_size = window_size
+        self.normalization = normalization
+        self.use_mmap = use_mmap
+        self.repeat = repeat
+        self.load_data()
+        if normalization:
+            self.get_mean_map()
 
-                self.labels.append(label)
+    def load_data(self):
+        # data: N C V T M
+        self.data = []
+        for data in self.data_dict:
+            file_name = data["file_name"]
+            with open(self.nw_ucla_root + file_name + ".json", "r") as f:
+                json_file = json.load(f)
+            skeletons = json_file["skeletons"]
+            value = np.array(skeletons)
+            self.data.append(value)
 
-            if id not in self.train_ids and self.mode == "valid":
-                if self.load_to_ram:
-                    self.samples.append(torch.tensor(np.load(file.path)))
-                else:
-                    self.samples.append(file.path)
-
-                self.labels.append(label)
-        print("-" * os.get_terminal_size().columns)
+    def get_mean_map(self):
+        data = self.data
+        N, C, T, V, M = data.shape
+        self.mean_map = (
+            data.mean(axis=2, keepdims=True)
+            .mean(axis=4, keepdims=True)
+            .mean(axis=0)
+        )
+        self.std_map = (
+            data.transpose((0, 2, 4, 1, 3))
+            .reshape((N * T * M, C * V))
+            .std(axis=0)
+            .reshape((C, 1, V, 1))
+        )
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.data_dict) * self.repeat
+
+    def __iter__(self):
+        return self
+
+    def rand_view_transform(self, X, agx, agy, s):
+        agx = math.radians(agx)
+        agy = math.radians(agy)
+        Rx = np.asarray(
+            [
+                [1, 0, 0],
+                [0, math.cos(agx), math.sin(agx)],
+                [0, -math.sin(agx), math.cos(agx)],
+            ]
+        )
+        Ry = np.asarray(
+            [
+                [math.cos(agy), 0, -math.sin(agy)],
+                [0, 1, 0],
+                [math.sin(agy), 0, math.cos(agy)],
+            ]
+        )
+        Ss = np.asarray([[s, 0, 0], [0, s, 0], [0, 0, s]])
+        X0 = np.dot(np.reshape(X, (-1, 3)), np.dot(Ry, np.dot(Rx, Ss)))
+        X = np.reshape(X0, X.shape)
+        return X
 
     def __getitem__(self, index):
-        label = self.labels[index]
+        label = self.label[index % len(self.data_dict)]
+        value = self.data[index % len(self.data_dict)]
 
-        if self.load_to_ram:
-            sample = self.samples[index]
+        if self.train_val == "train":
+            random.random()
+            agx = random.randint(-60, 60)
+            agy = random.randint(-60, 60)
+            s = random.uniform(0.5, 1.5)
+
+            center = value[0, 1, :]
+            value = value - center
+            scalerValue = self.rand_view_transform(value, agx, agy, s)
+
+            scalerValue = np.reshape(scalerValue, (-1, 3))
+            scalerValue = (scalerValue - np.min(scalerValue, axis=0)) / (
+                np.max(scalerValue, axis=0) - np.min(scalerValue, axis=0)
+            )
+            scalerValue = scalerValue * 2 - 1
+            scalerValue = np.reshape(scalerValue, (-1, 20, 3))
+
+            data = np.zeros((self.time_steps, 20, 3))
+
+            value = scalerValue[:, :, :]
+            length = value.shape[0]
+
+            random_idx = random.sample(
+                list(np.arange(length)) * 100, self.time_steps
+            )
+            random_idx.sort()
+            data[:, :, :] = value[random_idx, :, :]
+            data[:, :, :] = value[random_idx, :, :]
+
         else:
-            sample_path = self.samples[index]
+            random.random()
+            agx = 0
+            agy = 0
+            s = 1.0
 
-            sample = np.load(sample_path, allow_pickle=True)
-            sample = torch.from_numpy(sample)
+            center = value[0, 1, :]
+            value = value - center
+            scalerValue = self.rand_view_transform(value, agx, agy, s)
 
-        if self.transform is not None:
-            sample = self.transform(sample)
+            scalerValue = np.reshape(scalerValue, (-1, 3))
+            scalerValue = (scalerValue - np.min(scalerValue, axis=0)) / (
+                np.max(scalerValue, axis=0) - np.min(scalerValue, axis=0)
+            )
+            scalerValue = scalerValue * 2 - 1
 
-        if self.mode == "train" and self.augment is not None:
-            sample = self.augment(sample)
+            scalerValue = np.reshape(scalerValue, (-1, 20, 3))
 
-        features = self.features.split(",")
-        for id, f in enumerate(features):
-            features[id] = f.strip()
+            data = np.zeros((self.time_steps, 20, 3))
 
+            value = scalerValue[:, :, :]
+            length = value.shape[0]
+
+            idx = np.linspace(0, length - 1, self.time_steps).astype(np.int32)
+            data[:, :, :] = value[idx, :, :]  # T,V,C
+        data = np.transpose(data, (2, 0, 1))
+        C, T, V = data.shape
+        data = np.reshape(data, (C, T, V, 1))
+
+        data = data.astype(np.float32)
+        sample = torch.from_numpy(data)
         data = None
-
         for f in features:
             if f == "j":
                 data = torch.cat([data, sample]) if data is not None else sample
@@ -172,6 +239,13 @@ class NTUDataset(Dataset):
 
         return data, label
 
+    def top_k(self, score, top_k):
+        rank = score.argsort()
+
+        hit_top_k = [l in rank[i, -top_k:] for i, l in enumerate(self.label)]
+        return sum(hit_top_k) * 1.0 / len(hit_top_k)
+
+
     def __get_motion(self, sample: torch.Tensor):
         C, T, V, M = sample.size()
         diff = sample[:, 1:, :, :] - sample[:, :-1, :, :]
@@ -203,4 +277,4 @@ class NTUDataset(Dataset):
         return bones_motion
 
     def __get_angular_motion(self, sample: torch.Tensor):
-        return get_angular_motion(sample, 20)
+        return get_angular_motion(sample, 2, "ucla")
