@@ -112,10 +112,12 @@ class KineticDataset(Dataset):
 
         # sort by score
         sort_index = (-data_numpy[2, :, :, :].sum(axis=1)).argsort(axis=1)
+        print("$$$")
         print(data_numpy.shape)
         for t, s in enumerate(sort_index):
             data_numpy[:, t, :, :] = data_numpy[:, t, :, s].transpose((1, 2, 0))
         print(data_numpy.shape)
+        print("$$$")
         data_numpy = data_numpy[:, :, :, 0:num_person_out]
         data_numpy[2, :, :, :] = 0
 
