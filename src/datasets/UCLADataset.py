@@ -35,15 +35,23 @@ class UCLADataset(Dataset):
         use_mmap=True,
     ):
         self.graph = Graph()
-        self.features=features
+        self.features = features
 
         if "valid" in mode:
             self.mode = "valid"
-            with open("../../resources/ucla_train.json") as f:
+            with open(
+                os.path.join(
+                    os.path.dirname(__file__), "../../resources/ucla_valid.json"
+                )
+            ) as f:
                 self.data_dict = json.load(f)
         else:
             self.mode = "train"
-            with open("../../resources/ucla_valid.json") as f:
+            with open(
+                os.path.join(
+                    os.path.dirname(__file__), "../../resources/ucla_train.json"
+                )
+            ) as f:
                 self.data_dict = json.load(f)
 
         self.nw_ucla_root = data_path
@@ -245,7 +253,6 @@ class UCLADataset(Dataset):
 
         hit_top_k = [l in rank[i, -top_k:] for i, l in enumerate(self.label)]
         return sum(hit_top_k) * 1.0 / len(hit_top_k)
-
 
     def __get_motion(self, sample: torch.Tensor):
         C, T, V, M = sample.size()
