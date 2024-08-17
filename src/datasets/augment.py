@@ -56,7 +56,11 @@ class ResizeSequence(object):
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         C, T, V, M = data.size()
         begin = 0
-        end = int(torch.max(torch.nonzero(data.sum((0, 2, 3)))).item())
+        non_zero_frames = torch.nonzero(data.sum((0, 2, 3)))
+        if non_zero_frames.numel() == 0:
+            end = 1
+        else:
+            end = int(torch.max(non_zero_frames).item())
         valid_len = end - begin
 
         if len(self.p_interval) == 1:
