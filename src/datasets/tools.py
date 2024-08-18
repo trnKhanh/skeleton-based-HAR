@@ -21,6 +21,7 @@ def load_dataset(args, init_seed):
                         length_t=args.length_t,
                         p_interval=args.p_intervals,
                         load_to_ram=args.load_to_ram,
+                        use_am=args.use_am,
                     )
                 )
             elif args.dataset == "ucla":
@@ -29,6 +30,7 @@ def load_dataset(args, init_seed):
                         data_path=args.data_path,
                         mode="train",
                         features=feature,
+                        use_am=args.use_am,
                     )
                 )
 
@@ -53,6 +55,7 @@ def load_dataset(args, init_seed):
                     features=feature,
                     length_t=args.length_t,
                     load_to_ram=args.load_to_ram,
+                    use_am=args.use_am,
                 )
             )
         elif args.dataset == "ucla":
@@ -61,6 +64,7 @@ def load_dataset(args, init_seed):
                     data_path=args.data_path,
                     mode="valid",
                     features=feature,
+                    use_am=args.use_am,
                 )
             )
 

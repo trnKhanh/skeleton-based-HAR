@@ -43,6 +43,7 @@ def create_args():
     parser.add_argument(
         "--graph", default="src.graph.ntu_graph.Graph", type=str
     )
+    parser.add_argument("--use-am", action="store_true")
     parser.add_argument("--dataset", default="ntu", choices=["ntu", "ucla"])
     parser.add_argument("--num-points", default=25, type=int)
     parser.add_argument("--num-people", default=2, type=int)
@@ -305,6 +306,7 @@ def main(args):
                 loss_fn=loss_fn,
                 dataloader=train_dataloaders[0],
                 device=args.device,
+                use_am=args.use_am,
                 lr_schedule=lr_scheduler,
             )
             valid_avg_loss, valid_acc, _, _, score = valid_one_epoch(
@@ -312,6 +314,7 @@ def main(args):
                 loss_fn=loss_fn,
                 dataloader=valid_dataloaders[0],
                 device=args.device,
+                use_am=args.use_am,
             )
             if len(args.log_path) > 0:
                 log.append(
@@ -365,6 +368,7 @@ def main(args):
             loss_fn=loss_fn,
             dataloader=valid_dataloaders[0],
             device=args.device,
+            use_am=args.use_am,
         )
         if len(args.score_path):
             if score is not None:

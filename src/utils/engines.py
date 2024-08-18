@@ -15,6 +15,7 @@ def train_one_epoch(
     loss_fn,
     dataloader: DataLoader,
     device: torch.device,
+    use_am,
     lr_schedule=None,
 ):
     """
@@ -36,11 +37,17 @@ def train_one_epoch(
         if lr_schedule is not None:
             lr_schedule.step()
         for samples, labels in tepoch:
+            if use_am:
+                am = samples[:, -3:, :, :, :]
+                am = am.to(device)
+                samples = samples[:, :-3, :, :, :]
+            else:
+                am = None
 
             samples = samples.to(device)
             labels = labels.to(device)
 
-            preds = model(samples)
+            preds = model(samples, am)
             optimizer.zero_grad()
             loss = loss_fn(preds, labels)
             loss.backward()
@@ -65,7 +72,7 @@ def train_one_epoch(
 
 
 def valid_one_epoch(
-    model: nn.Module, loss_fn, dataloader: DataLoader, device: torch.device
+    model: nn.Module, loss_fn, dataloader: DataLoader, device: torch.device,use_am,
 ):
     """
     :param model: model to evaluate
@@ -87,10 +94,16 @@ def valid_one_epoch(
         with tqdm(dataloader, unit="batch", ncols=0) as tepoch:
             tepoch.set_description("Validation")
             for samples, labels in tepoch:
+                if use_am:
+                    am = samples[:, -3:, :, :, :]
+                    am = am.to(device)
+                    samples = samples[:, :-3, :, :, :]
+                else:
+                    am = None
                 samples = samples.to(device)
                 labels = labels.to(device)
 
-                preds = model(samples)
+                preds = model(samples, am)
 
                 score = preds if score is None else torch.cat([score, preds])
 
@@ -120,6 +133,7 @@ def valid_ensemble_one_epoch(
     models: nn.ModuleList,
     dataloaders: list[DataLoader],
     device: torch.device,
+    use_am,
     alphas=None,
 ):
     """
@@ -147,10 +161,16 @@ def valid_ensemble_one_epoch(
                 labels = torch.empty(0)
                 for i in range(len(models)):
                     samples, labels = next(dataloader_iters[i])
+                    if use_am:
+                        am = samples[:, -3:, :, :, :]
+                        am = am.to(device)
+                        samples = samples[:, :-3, :, :, :]
+                    else:
+                        am = None
 
                     samples = samples.to(device)
                     labels = labels.to(device)
-                    preds = models[i](samples)
+                    preds = models[i](samples, am)
 
                     if alphas is not None:
                         probs = (

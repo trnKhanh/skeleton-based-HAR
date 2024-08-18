@@ -25,6 +25,7 @@ class UCLADataset(Dataset):
         data_path,
         mode,
         features,
+        use_am: bool = True,
         repeat=5,
         random_choose=True,
         random_shift=False,
@@ -36,6 +37,7 @@ class UCLADataset(Dataset):
     ):
         self.graph = Graph()
         self.features = features
+        self.use_am = use_am
 
         if "valid" in mode:
             self.mode = "valid"
@@ -220,6 +222,8 @@ class UCLADataset(Dataset):
             features[id] = f.strip()
 
         data = None
+        if self.use_am:
+            features.append("am")
         for f in features:
             if f == "j":
                 data = torch.cat([data, sample]) if data is not None else sample

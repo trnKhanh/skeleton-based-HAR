@@ -312,6 +312,84 @@ class unit_gcn(nn.Module):
         return y
 
 
+
+class SpatialTemporalAttention(nn.Module):
+    def __init__(self, in_channels: int, r: int):
+        super(SpatialTemporalAttention, self).__init__()
+        self.in_channels = in_channels
+        self.inter_channels = in_channels // r
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_channels, self.inter_channels, 1),
+            nn.BatchNorm2d(self.inter_channels),
+            nn.Hardswish(),
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(self.inter_channels, in_channels, 1),
+            nn.BatchNorm2d(self.inter_channels),
+            nn.Sigmoid(),
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(self.inter_channels, in_channels, 1),
+            nn.BatchNorm2d(self.inter_channels),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, query, value):
+        N, C, T, V = query.size()
+        spatial_pool = self.conv1(query.mean(-1))  # N, C/r, T
+        temporal_pool = self.conv1(query.mean(-2))  # N, C/r, V
+
+        spatial_pool = self.conv2(spatial_pool).unsqueeze(-1)  # N, C, T, 1
+        temporal_pool = self.conv3(temporal_pool).unsqueeze(-2)  # N, C, 1, V
+
+        att_map = torch.matmul(spatial_pool, temporal_pool)
+
+        return att_map * value
+
+
+class AngularMotionUnit(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        inter_ratio: int = 4,
+        r: int = 2,
+        residual: bool = True,
+    ):
+        super(AngularMotionUnit, self).__init__()
+        self.in_channels = in_channels
+        self.inter_channels = in_channels * inter_ratio
+        self.out_channels = out_channels
+
+        if residual and in_channels == out_channels:
+            self.res = lambda x: x
+        elif residual and in_channels != out_channels:
+            self.res = nn.Conv2d(in_channels, out_channels, 1)
+        else:
+            self.res = lambda x: 0
+
+        self.att = SpatialTemporalAttention(
+            self.out_channels,
+            r,
+        )
+
+        self.mlp = nn.Sequential(
+            nn.Linear(in_channels, self.inter_channels),
+            nn.BatchNorm2d(self.inter_channels),
+            nn.ReLU(),
+            nn.Linear(self.inter_channels, self.out_channels),
+        )
+        self.norm = nn.BatchNorm2d(self.out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        res = self.res(x)
+        x = self.mlp(x)
+        x = self.att(x, x)
+        return self.relu(self.norm(res + x))
+
+
 class TCN_GCN_unit(nn.Module):
     def __init__(
         self,
@@ -337,17 +415,26 @@ class TCN_GCN_unit(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         if not residual:
             self.residual = lambda x: 0
+            self.residual_att = lambda x: 0
 
         elif (in_channels == out_channels) and (stride == 1):
             self.residual = lambda x: x
+            self.residual_att = lambda x: x
 
         else:
             self.residual = unit_tcn(
                 in_channels, out_channels, kernel_size=1, stride=stride
             )
+            self.residual_att = unit_tcn(
+                in_channels, out_channels, kernel_size=1, stride=stride
+            )
+        self.att = SpatialTemporalAttention(out_channels, 2)
 
-    def forward(self, x):
+    def forward(self, x, am=None):
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        if am:
+            res = self.residual_att(y)
+            y = self.relu(self.att(y, am) + res)
         return y
 
 
@@ -360,6 +447,7 @@ class Model(nn.Module):
         graph=None,
         graph_args=dict(),
         in_channels=3,
+        am_channels=3,
         drop_out=0,
         adaptive=True,
     ):
@@ -378,6 +466,17 @@ class Model(nn.Module):
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
 
         base_channel = 64
+        self.am_l1 = AngularMotionUnit(am_channels, base_channel)
+        self.am_l2 = AngularMotionUnit(base_channel, base_channel)
+        self.am_l3 = AngularMotionUnit(base_channel, base_channel)
+        self.am_l4 = AngularMotionUnit(base_channel, base_channel)
+        self.am_l5 = AngularMotionUnit(base_channel, base_channel * 2)
+        self.am_l6 = AngularMotionUnit(base_channel * 2, base_channel * 2)
+        self.am_l7 = AngularMotionUnit(base_channel * 2, base_channel * 2)
+        self.am_l8 = AngularMotionUnit(base_channel * 2, base_channel * 4)
+        self.am_l9 = AngularMotionUnit(base_channel * 4, base_channel * 4)
+        self.am_l10 = AngularMotionUnit(base_channel * 4, base_channel * 4)
+
         self.l1 = TCN_GCN_unit(
             in_channels, base_channel, A, residual=False, adaptive=adaptive
         )
@@ -411,7 +510,7 @@ class Model(nn.Module):
         else:
             self.drop_out = lambda x: x
 
-    def forward(self, x):
+    def forward(self, x, am=None):
         if len(x.shape) == 3:
             N, T, VC = x.shape
             x = (
@@ -430,16 +529,33 @@ class Model(nn.Module):
             .contiguous()
             .view(N * M, C, T, V)
         )
-        x = self.l1(x)
-        x = self.l2(x)
-        x = self.l3(x)
-        x = self.l4(x)
-        x = self.l5(x)
-        x = self.l6(x)
-        x = self.l7(x)
-        x = self.l8(x)
-        x = self.l9(x)
-        x = self.l10(x)
+        if am:
+            am = self.am_l1(am)
+        x = self.l1(x, am)
+        if am:
+            am = self.am_l2(am)
+        x = self.l2(x, am)
+        if am:
+            am = self.am_l3(am)
+        x = self.l3(x, am)
+        if am:
+            am = self.am_l4(am)
+        x = self.l4(x, am)
+        if am:
+            am = self.am_l5(am)
+        x = self.l6(x, am)
+        if am:
+            am = self.am_l7(am)
+        x = self.l7(x, am)
+        if am:
+            am = self.am_l8(am)
+        x = self.l8(x, am)
+        if am:
+            am = self.am_l9(am)
+        x = self.l9(x, am)
+        if am:
+            am = self.am_l10(am)
+        x = self.l10(x, am)
 
         # N*M,C,T,V
         c_new = x.size(1)

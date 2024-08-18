@@ -25,12 +25,14 @@ class NTUDataset(Dataset):
         split="x-subject",
         length_t=64,
         features="j",
+        use_am: bool = True,
         center=20,
         p_interval=[1],
         load_to_ram=False,
     ):
         super().__init__()
         self.graph = Graph()
+        self.use_am = use_am
 
         self.transform = transforms.Compose(
             [ResizeSequence(length_t, p_interval)]
@@ -139,6 +141,8 @@ class NTUDataset(Dataset):
             features[id] = f.strip()
 
         data = None
+        if self.use_am:
+            features.append("am")
 
         for f in features:
             if f == "j":
