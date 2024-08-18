@@ -326,12 +326,12 @@ class SpatialTemporalAttention(nn.Module):
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d(self.inter_channels, in_channels, 1),
-            nn.BatchNorm2d(self.inter_channels),
+            nn.BatchNorm2d(in_channels),
             nn.Sigmoid(),
         )
         self.conv3 = nn.Sequential(
             nn.Conv2d(self.inter_channels, in_channels, 1),
-            nn.BatchNorm2d(self.inter_channels),
+            nn.BatchNorm2d(in_channels),
             nn.Sigmoid(),
         )
 
@@ -353,7 +353,7 @@ class AngularMotionUnit(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        inter_ratio: int = 4,
+        inter_ratio: int = 2,
         r: int = 2,
         residual: bool = True,
     ):

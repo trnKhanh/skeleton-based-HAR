@@ -238,10 +238,9 @@ def main(args):
     print("=" * os.get_terminal_size().columns)
 
     num_features = args.features[0].count(",") + 1
-    if args.use_am:
-        num_features += 1
     model = Model(
         in_channels=3 * num_features,
+        am_channels=3,
         num_class=args.num_classes,
         num_point=args.num_points,
         num_person=args.num_people,
