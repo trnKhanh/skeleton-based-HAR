@@ -436,7 +436,7 @@ class TCN_GCN_unit(nn.Module):
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
         if am is not None:
             res = self.residual_att(y)
-            y = self.relu(self.att(y, am) + res)
+            y = self.relu(self.att(am, y) + res)
         return y
 
 
