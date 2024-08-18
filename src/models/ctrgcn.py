@@ -431,6 +431,7 @@ class TCN_GCN_unit(nn.Module):
         self.att = SpatialTemporalAttention(out_channels, 2)
 
     def forward(self, x, am=None):
+        print(x.size())
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
         if am is not None:
             res = self.residual_att(y)
