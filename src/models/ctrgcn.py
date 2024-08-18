@@ -432,7 +432,7 @@ class TCN_GCN_unit(nn.Module):
 
     def forward(self, x, am=None):
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
-        if am is not None:
+        if self.use_am:
             res = self.residual_att(y)
             y = self.relu(self.att(y, am) + res)
         return y
@@ -441,6 +441,7 @@ class TCN_GCN_unit(nn.Module):
 class Model(nn.Module):
     def __init__(
         self,
+        use_am,
         num_class=60,
         num_point=25,
         num_person=2,
@@ -464,18 +465,20 @@ class Model(nn.Module):
         self.num_class = num_class
         self.num_point = num_point
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
-
         base_channel = 64
-        self.am_l1 = AngularMotionUnit(am_channels, base_channel)
-        self.am_l2 = AngularMotionUnit(base_channel, base_channel)
-        self.am_l3 = AngularMotionUnit(base_channel, base_channel)
-        self.am_l4 = AngularMotionUnit(base_channel, base_channel)
-        self.am_l5 = AngularMotionUnit(base_channel, base_channel * 2)
-        self.am_l6 = AngularMotionUnit(base_channel * 2, base_channel * 2)
-        self.am_l7 = AngularMotionUnit(base_channel * 2, base_channel * 2)
-        self.am_l8 = AngularMotionUnit(base_channel * 2, base_channel * 4)
-        self.am_l9 = AngularMotionUnit(base_channel * 4, base_channel * 4)
-        self.am_l10 = AngularMotionUnit(base_channel * 4, base_channel * 4)
+        self.use_am = use_am
+        if use_am:
+            self.am_bn = nn.BatchNorm1d(num_person * am_channels * num_point)
+            self.am_l1 = AngularMotionUnit(am_channels, base_channel)
+            self.am_l2 = AngularMotionUnit(base_channel, base_channel)
+            self.am_l3 = AngularMotionUnit(base_channel, base_channel)
+            self.am_l4 = AngularMotionUnit(base_channel, base_channel)
+            self.am_l5 = AngularMotionUnit(base_channel, base_channel * 2)
+            self.am_l6 = AngularMotionUnit(base_channel * 2, base_channel * 2)
+            self.am_l7 = AngularMotionUnit(base_channel * 2, base_channel * 2)
+            self.am_l8 = AngularMotionUnit(base_channel * 2, base_channel * 4)
+            self.am_l9 = AngularMotionUnit(base_channel * 4, base_channel * 4)
+            self.am_l10 = AngularMotionUnit(base_channel * 4, base_channel * 4)
 
         self.l1 = TCN_GCN_unit(
             in_channels, base_channel, A, residual=False, adaptive=adaptive
@@ -529,31 +532,42 @@ class Model(nn.Module):
             .contiguous()
             .view(N * M, C, T, V)
         )
-        if am is not None:
+        if self.use_am and am is not None:
+            N, C, T, V, M = am.size()
+            am = am.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
+            am = self.data_bn(x)
+            am = (
+                am.view(N, M, V, C, T)
+                .permute(0, 1, 3, 4, 2)
+                .contiguous()
+                .view(N * M, C, T, V)
+            )
+
+        if self.use_am:
             am = self.am_l1(am)
         x = self.l1(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l2(am)
         x = self.l2(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l3(am)
         x = self.l3(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l4(am)
         x = self.l4(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l5(am)
         x = self.l6(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l7(am)
         x = self.l7(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l8(am)
         x = self.l8(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l9(am)
         x = self.l9(x, am)
-        if am is not None:
+        if self.use_am:
             am = self.am_l10(am)
         x = self.l10(x, am)
 

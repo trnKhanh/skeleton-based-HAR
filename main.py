@@ -239,6 +239,7 @@ def main(args):
 
     num_features = args.features[0].count(",") + 1
     model = Model(
+        use_am=args.use_am,
         in_channels=3 * num_features,
         am_channels=3,
         num_class=args.num_classes,
