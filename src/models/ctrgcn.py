@@ -432,7 +432,7 @@ class TCN_GCN_unit(nn.Module):
 
     def forward(self, x, am=None):
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
-        if am:
+        if am is not None:
             res = self.residual_att(y)
             y = self.relu(self.att(y, am) + res)
         return y
@@ -529,31 +529,31 @@ class Model(nn.Module):
             .contiguous()
             .view(N * M, C, T, V)
         )
-        if am:
+        if am is not None:
             am = self.am_l1(am)
         x = self.l1(x, am)
-        if am:
+        if am is not None:
             am = self.am_l2(am)
         x = self.l2(x, am)
-        if am:
+        if am is not None:
             am = self.am_l3(am)
         x = self.l3(x, am)
-        if am:
+        if am is not None:
             am = self.am_l4(am)
         x = self.l4(x, am)
-        if am:
+        if am is not None:
             am = self.am_l5(am)
         x = self.l6(x, am)
-        if am:
+        if am is not None:
             am = self.am_l7(am)
         x = self.l7(x, am)
-        if am:
+        if am is not None:
             am = self.am_l8(am)
         x = self.l8(x, am)
-        if am:
+        if am is not None:
             am = self.am_l9(am)
         x = self.l9(x, am)
-        if am:
+        if am is not None:
             am = self.am_l10(am)
         x = self.l10(x, am)
 
