@@ -230,6 +230,7 @@ def main(args):
     for id in range(len(args.features)):
         print("-" * os.get_terminal_size().columns)
         print(f"  Feature: {args.features[id]}")
+        print(f"  Use AM: {args.use_am}")
         if args.train:
             print(f"  Train size: {len(train_dataloaders[id].dataset)} samples")
         print(f"  Valid size: {len(valid_dataloaders[id].dataset)} samples")
@@ -237,6 +238,8 @@ def main(args):
     print("=" * os.get_terminal_size().columns)
 
     num_features = args.features[0].count(",") + 1
+    if args.use_am:
+        num_features += 1
     model = Model(
         in_channels=3 * num_features,
         num_class=args.num_classes,
