@@ -312,7 +312,6 @@ class unit_gcn(nn.Module):
         return y
 
 
-
 class SpatialTemporalAttention(nn.Module):
     def __init__(self, in_channels: int, r: int):
         super(SpatialTemporalAttention, self).__init__()
@@ -340,14 +339,10 @@ class SpatialTemporalAttention(nn.Module):
         spatial_pool = self.conv1(query.mean(-1, keepdim=True))  # N, C/r, T, 1
         temporal_pool = self.conv1(query.mean(-2, keepdim=True))  # N, C/r, 1, V
 
-        spatial_pool = self.conv2(spatial_pool) # N, C, T, 1
-        temporal_pool = self.conv3(temporal_pool) # N, C, 1, V
-        print("$$")
-        print(spatial_pool.size())
-        print(temporal_pool.size())
+        spatial_pool = self.conv2(spatial_pool)  # N, C, T, 1
+        temporal_pool = self.conv3(temporal_pool)  # N, C, 1, V
 
         att_map = torch.matmul(spatial_pool, temporal_pool)
-        print(att_map.size())
 
         return att_map * value
 
@@ -360,36 +355,39 @@ class AngularMotionUnit(nn.Module):
         inter_ratio: int = 2,
         r: int = 2,
         residual: bool = True,
+        stride: int = 1,
     ):
         super(AngularMotionUnit, self).__init__()
-        self.in_channels = in_channels
-        self.inter_channels = in_channels * inter_ratio
-        self.out_channels = out_channels
+        self.tcn1 = MultiScale_TemporalConv(
+            in_channels,
+            out_channels,
+            kernel_size=5,
+            stride=stride,
+            dilations=[1, 2],
+            residual=False,
+        )
+        if not residual:
+            self.residual = lambda x: 0
 
-        if residual and in_channels == out_channels:
-            self.res = lambda x: x
-        elif residual and in_channels != out_channels:
-            self.res = nn.Conv2d(in_channels, out_channels, 1)
+        elif (in_channels == out_channels) and (stride == 1):
+            self.residual = lambda x: x
+
         else:
-            self.res = lambda x: 0
+            self.residual = unit_tcn(
+                in_channels, out_channels, kernel_size=1, stride=stride
+            )
 
+        self.relu = nn.ReLU(inplace=True)
         self.att = SpatialTemporalAttention(
             self.out_channels,
             r,
-        )
-
-        self.mlp = nn.Sequential(
-            nn.Conv2d(in_channels, self.inter_channels, 1),
-            nn.BatchNorm2d(self.inter_channels),
-            nn.ReLU(),
-            nn.Conv2d(self.inter_channels, self.out_channels, 1),
         )
         self.norm = nn.BatchNorm2d(self.out_channels)
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        res = self.res(x)
-        x = self.mlp(x)
+        res = self.residual(x)
+        x = self.relu(self.tcn1(x))
         x = self.att(x, x)
         return self.relu(self.norm(res + x))
 
@@ -475,10 +473,14 @@ class Model(nn.Module):
             self.am_l2 = AngularMotionUnit(base_channel, base_channel)
             self.am_l3 = AngularMotionUnit(base_channel, base_channel)
             self.am_l4 = AngularMotionUnit(base_channel, base_channel)
-            self.am_l5 = AngularMotionUnit(base_channel, base_channel * 2)
+            self.am_l5 = AngularMotionUnit(
+                base_channel, base_channel * 2, stride=2
+            )
             self.am_l6 = AngularMotionUnit(base_channel * 2, base_channel * 2)
             self.am_l7 = AngularMotionUnit(base_channel * 2, base_channel * 2)
-            self.am_l8 = AngularMotionUnit(base_channel * 2, base_channel * 4)
+            self.am_l8 = AngularMotionUnit(
+                base_channel * 2, base_channel * 4, stride=2
+            )
             self.am_l9 = AngularMotionUnit(base_channel * 4, base_channel * 4)
             self.am_l10 = AngularMotionUnit(base_channel * 4, base_channel * 4)
 
