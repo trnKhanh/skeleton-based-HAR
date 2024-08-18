@@ -557,6 +557,9 @@ class Model(nn.Module):
         x = self.l4(x, am)
         if self.use_am:
             am = self.am_l5(am)
+        x = self.l5(x, am)
+        if self.use_am:
+            am = self.am_l6(am)
         x = self.l6(x, am)
         if self.use_am:
             am = self.am_l7(am)
