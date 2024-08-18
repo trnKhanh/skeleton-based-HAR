@@ -335,13 +335,13 @@ class SpatialTemporalAttention(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, query, value):
+    def forward(self, query: torch.Tensor, value: torch.Tensor):
         N, C, T, V = query.size()
-        spatial_pool = self.conv1(query.mean(-1))  # N, C/r, T
-        temporal_pool = self.conv1(query.mean(-2))  # N, C/r, V
+        spatial_pool = self.conv1(query.mean(-1, keepdim=True))  # N, C/r, T, 1
+        temporal_pool = self.conv1(query.mean(-2, keepdim=True))  # N, C/r, 1, V
 
-        spatial_pool = self.conv2(spatial_pool).unsqueeze(-1)  # N, C, T, 1
-        temporal_pool = self.conv3(temporal_pool).unsqueeze(-2)  # N, C, 1, V
+        spatial_pool = self.conv2(spatial_pool) # N, C, T, 1
+        temporal_pool = self.conv3(temporal_pool) # N, C, 1, V
 
         att_map = torch.matmul(spatial_pool, temporal_pool)
 
