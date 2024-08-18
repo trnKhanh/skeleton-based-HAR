@@ -535,7 +535,7 @@ class Model(nn.Module):
         if self.use_am and am is not None:
             N, C, T, V, M = am.size()
             am = am.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
-            am = self.data_bn(x)
+            am = self.data_bn(am)
             am = (
                 am.view(N, M, V, C, T)
                 .permute(0, 1, 3, 4, 2)
