@@ -375,10 +375,10 @@ class AngularMotionUnit(nn.Module):
         )
 
         self.mlp = nn.Sequential(
-            nn.Linear(in_channels, self.inter_channels),
+            nn.Conv2d(in_channels, self.inter_channels, 1),
             nn.BatchNorm2d(self.inter_channels),
             nn.ReLU(),
-            nn.Linear(self.inter_channels, self.out_channels),
+            nn.Conv2d(self.inter_channels, self.out_channels, 1),
         )
         self.norm = nn.BatchNorm2d(self.out_channels)
         self.relu = nn.ReLU(inplace=True)
