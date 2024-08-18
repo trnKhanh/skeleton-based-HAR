@@ -380,18 +380,15 @@ class AngularMotionUnit(nn.Module):
             )
 
         self.relu = nn.ReLU(inplace=True)
-        self.att = SpatialTemporalAttention(
-            self.out_channels,
-            r,
-        )
+        # self.att = SpatialTemporalAttention(
+        #     self.out_channels,
+        #     r,
+        # )
         self.norm = nn.BatchNorm2d(self.out_channels)
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        res = self.residual(x)
-        x = self.relu(self.tcn1(x))
-        x = self.att(x, x)
-        return self.relu(self.norm(res + x))
+        return self.relu(self.norm(self.tcn1(x) + self.residual(x)))
 
 
 class TCN_GCN_unit(nn.Module):
@@ -430,13 +427,17 @@ class TCN_GCN_unit(nn.Module):
                 in_channels, out_channels, kernel_size=1, stride=stride
             )
             self.residual_att = lambda x: x
-        self.att = SpatialTemporalAttention(out_channels, 2)
+        # self.att = SpatialTemporalAttention(out_channels, 2)
+        self.alpha = nn.Parameter(torch.zeros(1))
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, am=None):
-        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.tcn1(self.gcn1(x)) + self.residual(x)
         if am is not None:
-            res = self.residual_att(y)
-            y = self.relu(self.att(am, y) + res)
+            y = y + self.alpha * self.sigmoid(am) * y
+            # res = self.residual_att(y)
+            # y = self.relu(self.att(am, y) + res)
+        y = self.relu(y)
         return y
 
 
