@@ -342,8 +342,12 @@ class SpatialTemporalAttention(nn.Module):
 
         spatial_pool = self.conv2(spatial_pool) # N, C, T, 1
         temporal_pool = self.conv3(temporal_pool) # N, C, 1, V
+        print("$$")
+        print(spatial_pool.size())
+        print(temporal_pool.size())
 
         att_map = torch.matmul(spatial_pool, temporal_pool)
+        print(att_map.size())
 
         return att_map * value
 
