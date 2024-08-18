@@ -358,6 +358,8 @@ class AngularMotionUnit(nn.Module):
         stride: int = 1,
     ):
         super(AngularMotionUnit, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.tcn1 = MultiScale_TemporalConv(
             in_channels,
             out_channels,
